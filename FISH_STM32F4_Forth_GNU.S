@@ -161,9 +161,15 @@ txRDY_Q:
 .thumb_func
 XOFF_SUBR:
     MOV     w, lr // Allow for interrupts to use LR
-	LDR	n,= USART3_DR
 	LDR	y,  = XOFF_CHAR
+    LDR     x, = FLOW_STATE
+    LDRB    n, [x]          // n = last byte sent (scratch)
+    CMP     n, y
+    BEQ     XOFF_DONE       // already gated — skip the TXE wait + transmit
+    STRB    y, [x]          // record transition
+	LDR	n,= USART3_DR // load DR after state check: LDRB above clobbers n
 	STRB	y, [n]
+XOFF_DONE:	
     BX      w // lr  - SUBR RETURN
 #endif // XON_XOFF
 
@@ -173,9 +179,15 @@ XOFF_SUBR:
 .thumb_func
 XON_SUBR:
     MOV     w, lr // Allow for interrupts to use LR
-	LDR	n,= USART3_DR
 	LDR	y, = XON_CHAR // preserve TOS 11 24 01 49
+    LDR     x, = FLOW_STATE
+    LDRB    n, [x]          // n = last byte sent (scratch)
+    CMP     n, y
+    BEQ     XON_DONE       // already gated — skip the TXE wait + transmit
+    STRB    y, [x]          // record transition
+	LDR	n,= USART3_DR // load DR after state check: LDRB above clobbers n
 	STRB	y, [n]
+XON_DONE:
     BX      w //lr              // SUBR RETURN
 #endif // XON_XOFF
 #endif // IO2TP
